@@ -1,5 +1,7 @@
 # 🔬 DermaSim: Real-Time Acne Simulation 🧫
 
+![Cursor](https://avatars.githubusercontent.com/u/126759922?s=48&v=4)
+*Built with Cursor IDE* 
 ## 🌟 Overview
 
 DermaSim is an interactive 3D visualization tool that simulates the formation, progression, and healing of acne in real-time. This educational tool demonstrates the biological processes involved in acne development, from the initial incubation stage through inflammation, rupture, healing, and resolution.
