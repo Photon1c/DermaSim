@@ -6,7 +6,7 @@ DermaSim is an interactive 3D visualization tool that simulates the formation, p
 
 A live working page of this simulation is available [here](https://cheddarbutler.com/threejs/dermasim/).
 
-![DermaSim Preview](media/preview.png)
+![DermaSim Preview](media/preview.PNG)
 
 ## ✨ Features
 
