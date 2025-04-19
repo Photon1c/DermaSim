@@ -117,7 +117,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📬 Contact
 
-Questions or feedback? Reach out at youremail@example.com or open an issue in this repository.
+Questions or feedback? Reach out or open an issue in this repository.
 
 ---
 
