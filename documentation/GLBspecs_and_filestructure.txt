@@ -1,0 +1,83 @@
+🧱 .glb File Structure Spec: Acne Inflammation Sim
+🔹 Root Node: AcneFollicleSystem
+Parent object containing all subcomponents.
+
+🧩 MESH COMPONENTS
+
+Name	Type	Function	Animatable	Visibility Toggle
+Epidermis	Plane/Slab	Outer skin layer; semi-transparent cutaway surface.	No	No
+Dermis	Plane/Slab	Thicker, lower layer of skin; vascular structures implied by material.	No	No
+HairFollicle_Left	Tube	Clogged follicle #1 (inflammation target).	Yes (deform)	No
+HairFollicle_Right	Tube	Control follicle (non-inflamed); for comparison.	Yes (minor)	No
+HairStrand	Cylinder	Hair strand embedded in the follicle.	No	Optional
+SebumPlug	Blob/Torus	Yellowish semi-solid mass expanding in follicle.	Yes (scale)	Yes
+BacteriaCloud	Particles	Cluster of C. acnes near/within the plug.	Yes (spread)	Yes
+Neutrophils	Particles	White cell swarm incoming from dermis vessels.	Yes (move)	Yes
+Macrophages	Particles	Larger immune agents floating to lesion site.	Yes (move)	Yes
+CTL_TCells	Particles	Smaller aggressive immune agents targeting follicular wall.	Yes (move)	Yes
+RegulatoryTCells	Particles	Modulate CTL activity; orbit or stay in outer zones.	Yes (orbit)	Yes
+InflammationZone	Sphere Halo	Red-tinted semi-transparent overlay expanding with immune response.	Yes (grow/fade)	Yes
+PusPocket	Blob	Semi-opaque white mass growing beneath epidermis.	Yes (inflate)	Yes
+ScarTissue	Indented mesh	Forms post-resolution; dark spot or crater.	Yes (fade in)	Yes
+🎞️ ANIMATION TRACKS
+Use baked keyframes or morph targets—Three.js AnimationMixer or GLTF animations.
+
+
+Animation Name	Target(s)	Description
+StartClogging	SebumPlug	Slowly scale up size, rise to epidermis surface
+BacterialGrowth	BacteriaCloud	Particles increase + spread inward
+ImmuneRecruitment	Neutrophils, Macrophages	Swarm in from edge → toward follicle
+InflammationExpand	InflammationZone	Halo grows with red intensity
+PusFormation	PusPocket, SebumPlug	Sebum turns opaque, enlarges into visible pustule
+FollicleRupture	HairFollicle_Left, PusPocket	Follicle mesh tears; pus escapes into dermis
+CTL_AttackCycle	CTL_TCells	CTLs pulse or dive into follicle wall
+HealingPhase	All active particles	Fade out immune cells; inflammation halo shrinks
+ScarFormation	ScarTissue	Forms depression or dark patch at site
+🎨 MATERIALS & SHADERS
+
+Material	Mesh	Notes
+SkinBaseMat	Epidermis/Dermis	Matte peach/brown tones, optional bump map
+SebumMat	SebumPlug	Translucent yellow, turns opaque white for pus
+BacteriaMat	BacteriaCloud	Glowing green or purple dots
+NeutrophilMat	Neutrophils	White, soft-edged spherical particles
+MacrophageMat	Macrophages	Slightly larger, dull blue
+CTL_Mat	CTL_TCells	Bright red or violet, pulsing shader
+Treg_Mat	RegulatoryTCells	Gold or orange particles with fading effect
+InflammationMat	InflammationZone	Semi-transparent red glow (opacity controlled by state)
+ScarMat	ScarTissue	Flat grey or maroon with depressed UV bump
+📁 Suggested File Layout (Blender)
+objectivec
+Copy
+Edit
+/AcneFollicleSystem.glb
+├── Scene Root
+│   ├── SkinLayer_Epidermis
+│   ├── SkinLayer_Dermis
+│   ├── Follicle_Left
+│   ├── Follicle_Right
+│   ├── HairStrand
+│   ├── Plug_Sebum
+│   ├── Cloud_Bacteria
+│   ├── Cluster_Neutrophils
+│   ├── Cluster_Macrophages
+│   ├── CTLs
+│   ├── TRegs
+│   ├── RedHalo_Inflammation
+│   ├── Blob_Pus
+│   ├── Mesh_Scar
+├── Animations
+│   ├── StartClogging
+│   ├── BacterialGrowth
+│   ├── ImmuneRecruitment
+│   ├── InflammationExpand
+│   ├── PusFormation
+│   ├── FollicleRupture
+│   ├── CTL_AttackCycle
+│   ├── HealingPhase
+│   ├── ScarFormation
+🔗 Integration Notes
+Three.js: Use GLTFLoader → bind animation tracks via AnimationMixer.
+
+p5.js: You’d load and rotate the .glb but animations are trickier—better to preload baked mesh states.
+
+model-viewer: Simple display, not ideal for complex control.

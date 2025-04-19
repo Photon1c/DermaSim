@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Acne Inflammation & Healing Simulation</title>
+    <!-- Import THREE.js first -->
+    <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.esm.js"
+        }
+    }
+    </script>
+
+    <!-- Load p5.js after THREE.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
+    
+    <!-- Load our modules -->
+    <script type="module">
+        import { AcneSimulation } from './simulation.js';
+        import { AcneVisualization } from './visualization.js';
+        
+        // Make classes globally available
+        window.AcneSimulation = AcneSimulation;
+        window.AcneVisualization = AcneVisualization;
+        
+        // Initialize after modules are loaded
+        window.addEventListener('load', () => {
+            if (!window.simulation) {
+                console.log("Creating new simulation instance");
+                window.simulation = new AcneSimulation();
+            }
+            
+            if (!window.visualization) {
+                console.log("Creating new visualization instance");
+                window.visualization = new AcneVisualization('canvasContainer');
+                
+                // Set initial camera position to match the front view position
+                console.log("Setting initial camera position to front view...");
+                window.visualization.setCameraPosition(
+                    new THREE.Vector3(-1.97, 0.28, -8.40),
+                    new THREE.Vector3(-1.46, -0.17, 0.11)
+                );
+                
+                // Wait for models to load before starting animation
+                const checkModelsLoaded = setInterval(() => {
+                    if (window.visualization.model && window.visualization.effectMeshes.inflammation) {
+                        console.log("Models loaded, starting animation");
+                        window.visualization.animate();
+                        clearInterval(checkModelsLoaded);
+                        
+                        // Force initial stage update (no camera setting here)
+                        if (window.simulation) {
+                            window.visualization.updateStageVisuals(window.simulation.simulationStage);
+                        }
+                    }
+                }, 100);
+            }
+            
+            // Setup function will now use existing instances
+            if (typeof setup === 'function') {
+                setup();
+            }
+        });
+    </script>
+    
+    <!-- Load main script after modules -->
+    <script type="module" src="main.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        #canvasContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh; /* Full viewport height */
+            overflow: hidden;
+        }
+        
+        #instructionText {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 5px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #stageIndicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 5px;
+            z-index: 100;
+        }
+        
+        #dermaSimTitle {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-style: italic;
+            color: #333;
+            font-family: 'Arial', sans-serif;
+            opacity: 1;
+            transition: opacity 1s ease-in-out;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        #dermaSimTitle.fade-out {
+            opacity: 0;
+        }
+        
+        #controlPanel {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 5px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .slider-container {
+            margin: 10px 0;
+        }
+        
+        label {
+            display: inline-block;
+            width: 120px;
+        }
+        
+        #animationControls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 0;
+            border-radius: 5px;
+            z-index: 100;
+            width: 300px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 0.9em;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .minimize-btn {
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        
+        .control-panel-body {
+            padding: 10px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .control-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .compact-row {
+            font-size: 0.9em;
+        }
+        
+        .main-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .control-btn {
+            flex: 1;
+            min-width: auto;
+            font-size: 0.8em;
+            padding: 3px 8px;
+        }
+        
+        .stages-container {
+            margin-top: 6px;
+        }
+        
+        .stage-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-bottom: 4px;
+        }
+        
+        .stage-btn {
+            padding: 2px 5px;
+            font-size: 0.75em;
+            background: #6699cc;
+            margin: 0;
+        }
+        
+        .info-text {
+            display: block;
+            font-size: 0.8em;
+            margin-top: 3px;
+            color: #555;
+        }
+        
+        .camera-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .camera-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .camera-btn {
+            flex: 1;
+            padding: 2px 4px;
+            font-size: 0.75em;
+            background: #66aa66;
+        }
+        
+        h4 {
+            margin: 6px 0 4px 0;
+            font-size: 0.85em;
+            color: #555;
+        }
+        
+        label {
+            font-size: 0.85em;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+        }
+        
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .checkbox-item input {
+            margin: 0;
+        }
+        
+        .checkbox-item label {
+            font-size: 0.75em;
+            width: auto;
+        }
+        
+        .checkbox-wrapper {
+            margin-top: 10px;
+        }
+        
+        .checkbox-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        
+        .checkbox-row input {
+            margin-right: 5px;
+        }
+        
+        .checkbox-row label {
+            margin-right: 15px;
+        }
+        
+        .slider-value {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+            margin-left: 5px;
+        }
+        
+        .quick-set {
+            padding: 2px 5px;
+            font-size: 0.7em;
+            background: #999999;
+            margin-left: 5px;
+        }
+        
+        #instructionsButton {
+            padding: 5px 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: background-color 0.2s;
+        }
+
+        #instructionsButton:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        #instructionsModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1001;
+            max-width: 500px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        #instructionsModal h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        #instructionsModal ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        #instructionsModal button {
+            margin-top: 15px;
+            padding: 5px 10px;
+            background-color: #6699cc;
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+        }
+
+        #modalOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .stage-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            max-width: 400px;
+        }
+        
+        .stage-controls h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .stage-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .control-button {
+            padding: 8px 12px;
+            background-color: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .control-button:hover {
+            background-color: #3a5a8c;
+        }
+        
+        .stage-indicator {
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stage-progress {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            flex-grow: 1;
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #4a6fa5;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .stage-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .stage-nav-button {
+            padding: 5px 8px;
+            background-color: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .stage-nav-button:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .stage-nav-button.active {
+            background-color: #4a6fa5;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="modalOverlay"></div>
+    <div id="instructionsModal">
+        <h2>DermaSim Instructions</h2>
+        <ul>
+            <li><strong>H key:</strong> Show/hide control panel</li>
+            <li><strong>K key:</strong> Show/hide UI elements</li>
+            <li><strong>Camera Controls:</strong>
+                <ul>
+                    <li>Left click + drag to rotate</li>
+                    <li>Right click + drag to pan</li>
+                    <li>Scroll to zoom</li>
+                </ul>
+            </li>
+            <li><strong>Stage Controls:</strong>
+                <ul>
+                    <li>Use stage buttons to jump to specific stages</li>
+                    <li>Use "Skip Stage" to advance to next stage</li>
+                    <li>Adjust simulation speed and progression rate</li>
+                </ul>
+            </li>
+            <li><strong>Visualization:</strong>
+                <ul>
+                    <li>Toggle rotation with checkbox</li>
+                    <li>Control visibility of different elements</li>
+                    <li>Use camera preset buttons for different views</li>
+                </ul>
+            </li>
+        </ul>
+        <button onclick="closeInstructions()">Close</button>
+    </div>
+
+    <!-- Main simulation container -->
+    <div id="canvasContainer"></div>
+    
+    <!-- DermaSim Title -->
+    <div id="dermaSimTitle">DermaSim</div>
+    
+    <!-- UI overlays -->
+    <div id="instructionText">
+        <div>
+            Press 'H' to show/hide controls<br>
+            Press 'K' to show/hide UI elements
+        </div>
+        <button id="instructionsButton">ⓘ Instructions</button>
+    </div>
+    
+    <div id="stageIndicator">Stage: Incubation</div>
+    
+    <!-- Animation control panel -->
+    <div id="animationControls">
+        <div class="control-header">
+            <h3>Animation Controls</h3>
+            <span class="minimize-btn" title="Minimize panel">−</span>
+        </div>
+        
+        <div class="control-panel-body">
+            <div class="control-group">
+                <div class="control-row main-controls">
+                    <button id="pauseBtn" class="control-btn">Pause</button>
+                    <button id="resetBtn" class="control-btn">Reset</button>
+                    <button id="skipStageBtn" class="control-btn">Skip Stage</button>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rotateToggle" checked>
+                        <label for="rotateToggle">Rotate</label>
+                    </div>
+                </div>
+
+                <div class="stages-container">
+                    <div class="stage-buttons">
+                        <button class="stage-btn" data-stage="incubation">Incubation</button>
+                        <button class="stage-btn" data-stage="comedone">Comedone</button>
+                        <button class="stage-btn" data-stage="papule">Papule</button>
+                        <button class="stage-btn" data-stage="pustule">Pustule</button>
+                        <button class="stage-btn" data-stage="rupture">Rupture</button>
+                        <button class="stage-btn" data-stage="healing">Healing</button>
+                        <button class="stage-btn" data-stage="worsening">Worsening</button>
+                        <button class="stage-btn" data-stage="resolved">Resolved</button>
+                    </div>
+                    <span id="stageDisplay" class="info-text">Current Stage: Incubation</span>
+                </div>
+            </div>
+            
+            <div class="control-group compact">
+                <div class="control-row compact-row">
+                    <label for="speedSlider">Speed:</label>
+                    <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+                    <span id="speedValue">1×</span>
+                </div>
+                <div class="control-row compact-row">
+                    <label for="progressionSlider">Progression:</label>
+                    <input type="range" id="progressionSlider" min="1" max="10" step="0.5" value="1">
+                    <span id="progressionValue">1×</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h4>Camera</h4>
+                <div class="camera-controls">
+                    <div class="camera-buttons">
+                        <button id="cameraTop" class="camera-btn">Top</button>
+                        <button id="cameraFront" class="camera-btn">Front</button>
+                        <button id="cameraSide" class="camera-btn">Side</button>
+                        <button id="camera3d" class="camera-btn">3D</button>
+                    </div>
+                    <div class="control-row compact-row">
+                        <label for="zoomSlider">Zoom:</label>
+                        <input type="range" id="zoomSlider" min="1" max="15" step="0.5" value="8">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h4>Visibility</h4>
+                <div class="checkbox-grid">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showBacteria" checked>
+                        <label for="showBacteria">Bacteria</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showNeutrophils" checked>
+                        <label for="showNeutrophils">Neutrophils</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showInflammation" checked>
+                        <label for="showInflammation">Inflam.</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showPus" checked>
+                        <label for="showPus">Pus</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showLabels" checked>
+                        <label for="showLabels">Labels</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showEffects" checked>
+                        <label for="showEffects">Effects</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Control panel for simulation parameters -->
+    <div id="controlPanel">
+        <h3>Simulation Controls</h3>
+        
+        <div class="slider-container">
+            <label for="sebumSlider">Sebum Production:</label>
+            <input type="range" id="sebumSlider" min="0" max="1000" value="500">
+            <span class="slider-value" id="sebumValue">50%</span>
+            <button class="quick-set" data-slider="sebumSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="bacteriaSlider">Bacteria Presence:</label>
+            <input type="range" id="bacteriaSlider" min="0" max="1000" value="200">
+            <span class="slider-value" id="bacteriaValue">20%</span>
+            <button class="quick-set" data-slider="bacteriaSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="medicationSlider">Medication:</label>
+            <input type="range" id="medicationSlider" min="0" max="1000" value="0">
+            <span class="slider-value" id="medicationValue">0%</span>
+            <button class="quick-set" data-slider="medicationSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="inflammationSlider">Inflammation Response:</label>
+            <input type="range" id="inflammationSlider" min="0" max="1000" value="500">
+            <span class="slider-value" id="inflammationValue">50%</span>
+            <button class="quick-set" data-slider="inflammationSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="healingSlider">Healing Rate:</label>
+            <input type="range" id="healingSlider" min="0" max="1000" value="500">
+            <span class="slider-value" id="healingValue">50%</span>
+            <button class="quick-set" data-slider="healingSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="temperatureSlider">Skin Temperature:</label>
+            <input type="range" id="temperatureSlider" min="0" max="1000" value="500">
+            <span class="slider-value" id="temperatureValue">50%</span>
+            <button class="quick-set" data-slider="temperatureSlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="humiditySlider">Skin Humidity:</label>
+            <input type="range" id="humiditySlider" min="0" max="1000" value="500">
+            <span class="slider-value" id="humidityValue">50%</span>
+            <button class="quick-set" data-slider="humiditySlider" data-value="1000">Max</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="frictionSlider">Skin Friction:</label>
+            <input type="range" id="frictionSlider" min="0" max="1000" value="0">
+            <span class="slider-value" id="frictionValue">0%</span>
+            <button class="quick-set" data-slider="frictionSlider" data-value="1000">Max</button>
+        </div>
+    </div>
+    
+    <!-- Camera Controls -->
+    <script type="module">
+        import * as THREE from 'three';
+        
+        // Wait for visualization to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup stage buttons
+            const stageButtons = document.querySelectorAll('.stage-btn');
+            stageButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const stage = button.dataset.stage;
+                    console.log('Stage button clicked:', stage); // Debug log
+                    
+                    if (window.simulation && window.visualization) {
+                        // Update simulation stage
+                        window.simulation.setStage(stage);
+                        
+                        // Update visualization with a slight delay to ensure simulation state is updated
+                        setTimeout(() => {
+                            window.visualization.updateStageVisuals(stage);
+                            // Update stage display
+                            const formattedStage = stage.charAt(0).toUpperCase() + stage.slice(1);
+                            document.getElementById('stageDisplay').textContent = `Current Stage: ${formattedStage}`;
+                            document.getElementById('stageIndicator').textContent = `Stage: ${formattedStage}`;
+                        }, 50);
+                    } else {
+                        console.warn('Simulation or visualization not ready');
+                    }
+                });
+            });
+
+            const setupCameraControls = () => {
+                // DO NOT set initial camera position here - it's done on load
+
+                document.getElementById('cameraFront').addEventListener('click', () => {
+                    if (window.visualization) {
+                        window.visualization.setCameraPosition(
+                            new THREE.Vector3(-1.97, 0.28, -8.40),
+                            new THREE.Vector3(-1.46, -0.17, 0.11)
+                        );
+                    }
+                });
+                
+                document.getElementById('cameraTop').addEventListener('click', () => {
+                    if (window.visualization) {
+                        window.visualization.setCameraPosition(
+                            new THREE.Vector3(-1.75, 10.70, -0.33),
+                            new THREE.Vector3(-1.75, -0.17, 0.39)
+                        );
+                    }
+                });
+                
+                document.getElementById('cameraSide').addEventListener('click', () => {
+                    if (window.visualization) {
+                        window.visualization.setCameraPosition(
+                            new THREE.Vector3(-10.35, -0.14, -6.28),
+                            new THREE.Vector3(-1.75, -0.17, 0.39)
+                        );
+                    }
+                });
+                
+                document.getElementById('camera3d').addEventListener('click', () => {
+                    if (window.visualization) {
+                        window.visualization.setCameraPosition(
+                            new THREE.Vector3(6.35, 4.36, -6.17),
+                            new THREE.Vector3(-2.10, -0.38, -0.28)
+                        );
+                    }
+                });
+            };
+            
+            // Try to set up controls immediately, or wait for visualization
+            if (window.visualization) {
+                setupCameraControls();
+            } else {
+                // Wait for visualization to be created
+                const checkInterval = setInterval(() => {
+                    if (window.visualization) {
+                        setupCameraControls();
+                        clearInterval(checkInterval);
+                    }
+                }, 100);
+            }
+        });
+    </script>
+
+    <!-- Add title fade script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const title = document.getElementById('dermaSimTitle');
+                if (title) {
+                    title.classList.add('fade-out');
+                    setTimeout(() => {
+                        title.style.display = 'none';
+                    }, 1000); // Wait for fade animation to complete
+                }
+            }, 15000); // 15 seconds
+        });
+    </script>
+
+    <!-- Add before closing body tag -->
+    <script>
+        // Keyboard controls
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === 'h') {
+                const controlPanel = document.getElementById('controlPanel');
+                if (controlPanel) {
+                    controlPanel.style.display = controlPanel.style.display === 'none' ? 'block' : 'none';
+                }
+            } else if (event.key.toLowerCase() === 'k') {
+                const elements = [
+                    document.getElementById('instructionText'),
+                    document.getElementById('stageIndicator'),
+                    document.getElementById('animationControls')
+                ];
+                elements.forEach(el => {
+                    if (el) {
+                        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                    }
+                });
+            } else if (event.key.toLowerCase() === 'p') {
+                // Log camera position and target
+                if (window.visualization && window.visualization.camera) {
+                    const camera = window.visualization.camera;
+                    const position = camera.position;
+                    const target = window.visualization.controls ? 
+                        window.visualization.controls.target :
+                        new THREE.Vector3(0, 0, 0);
+                    
+                    console.log('Camera Position:', {
+                        x: position.x.toFixed(2),
+                        y: position.y.toFixed(2),
+                        z: position.z.toFixed(2)
+                    });
+                    console.log('Camera Target:', {
+                        x: target.x.toFixed(2),
+                        y: target.y.toFixed(2),
+                        z: target.z.toFixed(2)
+                    });
+                }
+            }
+        });
+
+        // Instructions modal
+        document.getElementById('instructionsButton').addEventListener('click', () => {
+            document.getElementById('instructionsModal').style.display = 'block';
+            document.getElementById('modalOverlay').style.display = 'block';
+        });
+
+        function closeInstructions() {
+            document.getElementById('instructionsModal').style.display = 'none';
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', closeInstructions);
+    </script>
+
+    <script>
+        // Stage navigation functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const stageNavButtons = document.querySelectorAll('.stage-nav-button');
+            
+            stageNavButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetStage = this.getAttribute('data-stage');
+                    if (window.simulation) {
+                        window.simulation.setStage(targetStage);
+                        updateActiveStageButton(targetStage);
+                    }
+                });
+            });
+            
+            function updateActiveStageButton(stage) {
+                stageNavButtons.forEach(button => {
+                    if (button.getAttribute('data-stage') === stage) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+            
+            // Update current stage display
+            function updateCurrentStageDisplay(stage) {
+                const currentStageElement = document.getElementById('currentStage');
+                if (currentStageElement) {
+                    currentStageElement.textContent = `Current Stage: ${stage.charAt(0).toUpperCase() + stage.slice(1)}`;
+                }
+                updateActiveStageButton(stage);
+            }
+            
+            // Expose the update function globally
+            window.updateCurrentStageDisplay = updateCurrentStageDisplay;
+        });
+    </script>
+</body>
+</html> 
